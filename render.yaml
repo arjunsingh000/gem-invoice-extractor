@@ -2,8 +2,5 @@ services:
   - type: web
     name: gem-invoice-extractor
     env: python
-    buildCommand: |
-      pip install --upgrade pip
-      pip install wheel
-      pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
