@@ -1,9 +1,10 @@
 from flask import Flask, render_template, request, send_file
-import os
 import pandas as pd
-import pdfplumber
+import fitz  # PyMuPDF
 import re
 from io import BytesIO
+from openpyxl import load_workbook
+from openpyxl.styles import Alignment
 
 app = Flask(__name__)
 
@@ -13,47 +14,93 @@ def clean_excel_value(val):
     return val
 
 def extract_field(pattern, text, group=1, default=""):
-    match = re.search(pattern, text, re.IGNORECASE)
+    match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
     return match.group(group).strip() if match else default
+
+def extract_multiline_block(start_label, end_labels, lines):
+    start_index = None
+    for i, line in enumerate(lines):
+        if start_label.lower() in line.lower():
+            start_index = i
+            break
+
+    if start_index is None:
+        return ""
+
+    block = []
+    for line in lines[start_index + 1:]:
+        if any(end.lower() in line.lower() for end in end_labels):
+            break
+        block.append(line.strip())
+
+    return "\n".join([l for l in block if l])
 
 def extract_from_pdfs(files):
     data = []
 
     for file in files:
         if file.filename.endswith(".pdf"):
-            with pdfplumber.open(file) as pdf:
-                full_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+            doc = fitz.open(stream=file.read(), filetype="pdf")
+            full_text = "\n".join(page.get_text() for page in doc)
+            lines = full_text.splitlines()
 
-            # Extract block of Organisation & Buyer info
-            org_block = extract_field(r"(Organisation Details[\s\S]{50,400}?)\n\s*Buyer Details", full_text, group=1)
-            buyer_block = extract_field(r"(Buyer Details[\s\S]{30,400}?)\n\s*\w", full_text, group=1)
+            # Multiline block: Organisation and Buyer
+            organisation_block = extract_multiline_block(
+                start_label="Organisation Details",
+                end_labels=["Buyer Details", "खरीदार विवरण", "Financial Approval"],
+                lines=lines
+            )
+            buyer_block = extract_multiline_block(
+                start_label="Buyer Details",
+                end_labels=["Financial Approval", "Seller Details", "विक्रेता विवरण"],
+                lines=lines
+            )
+            org_buyer_details = f"संस्‍थान विवरण:\n{organisation_block.strip()}\n\nखरीदार विवरण:\n{buyer_block.strip()}"
 
-            seller_address = extract_field(r"Address\s*:\s*(.*\n.*,\s*\w+,\s*\w+-\d+)", full_text)
+            # Seller Address block
+            seller_address = extract_multiline_block(
+                start_label="Address",
+                end_labels=["Email ID", "GSTIN", "MSME", "Contact No", "Company Name"],
+                lines=lines
+            )
+            seller_address = ", ".join(seller_address.split("\n"))
 
             record = {
                 "File Name": file.filename,
-                "Contract No.": extract_field(r"Contract No[:\-]?\s*(GEMC-\d+)", full_text),
+                "Contract No": extract_field(r"Contract No[:\-]?\s*(GEMC-\d+)", full_text),
                 "Generated Date": extract_field(r"Generated Date\s*:\s*(\d{1,2}-\w+-\d{4})", full_text),
-                "Organisation & Buyer Details": (org_block + "\n\n" + buyer_block).strip(),
-                "Seller Company": extract_field(r"Company Name\s*:\s*(.+)", full_text),
-                "Seller Phone": extract_field(r"Contact No\.\s*:\s*([0-9\-]+)", full_text),
-                "Seller Email": extract_field(r"Email ID\s*:\s*([\w\.\-@]+)", full_text),
-                "Seller GSTIN": extract_field(r"GSTIN\s*:\s*([A-Z0-9]+)", full_text),
-                "Seller Address": seller_address.replace("\n", ", ") if seller_address else "",
-                "Product Name": extract_field(r"Product Name\s*:\s*(.+)", full_text),
-                "Brand": extract_field(r"Brand\s*:\s*(.+)", full_text),
-                "Quantity": extract_field(r"(\d+)\s+pieces", full_text),
-                "Unit Price": extract_field(r"pieces\s+([\d,]+)", full_text),
-                "Total Price": extract_field(r"Total Order Value.*?(\d[\d,]*)", full_text),
-                "Wattage": extract_field(r"Rating\s*-\s*(\d+)\s*Watt", full_text)
+                "Organisation & Buyer Details": org_buyer_details,
+                "Seller Company Name": extract_field(r"Company Name\s*:\s*([^\n]*)", full_text),
+                "Seller Phone": extract_field(r"Contact No\.?\s*:\s*-?(\d{10})", full_text),
+                "Seller Email": extract_field(r"Email ID\s*:\s*([\w\.-]+@[\w\.-]+)", full_text),
+                "Seller Address": seller_address,
+                "Seller GSTIN": extract_field(r"GSTIN[:\s]*([A-Z0-9]+)", full_text),
+                "Product Name": extract_field(r"Product Name\s*:\s*(.*?)\s*\|", full_text),
+                "Brand": extract_field(r"Brand\s*:\s*(.*?)\s*\|", full_text),
+                "Quantity": extract_field(r"(\d+)\s*pieces", full_text),
+                "Unit Price": extract_field(r"pieces\s+([\d,]+)", full_text).replace(",", ""),
+                "Total Price": extract_field(r"Total Order Value.*?(\d[\d,]*)", full_text).replace(",", ""),
+                "Watts": extract_field(r"Rating\s*-\s*(\d+)\s*Watt", full_text)
             }
 
             data.append(record)
 
     df = pd.DataFrame(data)
     df = df.map(clean_excel_value)
+
+    # Save using openpyxl for styling
     output = BytesIO()
-    df.to_excel(output, index=False)
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Invoices')
+
+        # Apply wrap text to Organisation & Buyer Details column
+        workbook = writer.book
+        worksheet = writer.sheets['Invoices']
+
+        for row in worksheet.iter_rows(min_row=2, min_col=4, max_col=4):
+            for cell in row:
+                cell.alignment = Alignment(wrap_text=True, vertical='top')
+
     output.seek(0)
     return output
 
