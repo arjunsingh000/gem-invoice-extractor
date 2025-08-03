@@ -92,7 +92,7 @@ def extract_from_pdfs(files):
             data.append(record)
 
     df = pd.DataFrame(data)
-    df = df.map(clean_excel_value)
+    df = df.applymap(clean_excel_value)
 
     # Save using openpyxl for styling
     output = BytesIO()
