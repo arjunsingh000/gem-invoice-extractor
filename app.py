@@ -116,9 +116,14 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    files = request.files.getlist('pdfs')
-    excel_output = extract_from_pdfs(files)
-    return send_file(excel_output, as_attachment=True, download_name='gem_invoice_data.xlsx')
+    try:
+        files = request.files.getlist('pdfs')
+        excel_output = extract_from_pdfs(files)
+        return send_file(excel_output, as_attachment=True, download_name='gem_invoice_data.xlsx')
+    except Exception as e:
+        logging.exception("Internal server error occurred.")
+        return "Internal Server Error", 500
+
 
 @app.errorhandler(Exception)
 def handle_exception(e):
