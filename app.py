@@ -115,4 +115,7 @@ def upload():
     return send_file(excel_output, as_attachment=True, download_name='gem_invoice_data.xlsx')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
+
