@@ -40,7 +40,9 @@ def extract_from_pdfs(files):
 
     for file in files:
         if file.filename.endswith(".pdf"):
-            doc = fitz.open(stream=file.read(), filetype="pdf")
+            file.stream.seek(0)
+            doc = fitz.open(stream=file.stream.read(), filetype="pdf")
+
             full_text = "\n".join(page.get_text() for page in doc)
             lines = full_text.splitlines()
 
