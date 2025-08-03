@@ -6,6 +6,10 @@ from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+
 app = Flask(__name__)
 
 def clean_excel_value(val):
@@ -115,6 +119,12 @@ def upload():
     files = request.files.getlist('pdfs')
     excel_output = extract_from_pdfs(files)
     return send_file(excel_output, as_attachment=True, download_name='gem_invoice_data.xlsx')
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    app.logger.error(f"Unhandled Exception: {e}", exc_info=True)
+    return "Internal server error occurred.", 500
+
 
 if __name__ == '__main__':
     import os
