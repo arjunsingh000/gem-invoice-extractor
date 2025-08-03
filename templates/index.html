@@ -4,88 +4,125 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Ascentech Lightning Solutions - GeM Invoice Extractor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --primary: #1a237e;
+      --accent: #4caf50;
+      --bg: #f4f6f8;
+      --card-bg: rgba(255, 255, 255, 0.9);
+      --text: #333;
+    }
+
+    * {
+      box-sizing: border-box;
+      transition: all 0.3s ease;
+    }
+
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(to right, #e3f2fd, #ffffff);
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #e3f2fd, #ffffff);
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
+      height: 100vh;
       margin: 0;
     }
+
     .container {
-      background: #fff;
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
       padding: 40px;
-      border-radius: 12px;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+      border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      width: 100%;
       max-width: 600px;
-      width: 90%;
       text-align: center;
+      animation: fadeIn 0.8s ease-out;
     }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     h1 {
-      color: #0d47a1;
-      margin-bottom: 5px;
+      color: var(--primary);
+      font-size: 28px;
+      margin-bottom: 10px;
     }
+
     h3 {
-      color: #666;
-      font-weight: normal;
+      color: #555;
+      font-weight: 400;
+      margin-bottom: 30px;
+    }
+
+    input[type="file"] {
+      margin-top: 10px;
+      padding: 12px;
+      border: 2px dashed #ccc;
+      border-radius: 10px;
+      background: #f9f9f9;
+      width: 100%;
+      cursor: pointer;
+      transition: border-color 0.3s;
+    }
+
+    input[type="file"]:hover {
+      border-color: var(--primary);
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 12px 30px;
+      font-size: 16px;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(26, 35, 126, 0.3);
+    }
+
+    button:hover {
+      background-color: #283593;
+    }
+
+    .radio-group {
       margin-bottom: 20px;
     }
-    input[type="file"] {
-      padding: 12px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      width: 100%;
-      background: #f9f9f9;
-      cursor: pointer;
-      display: block;
-      margin-top: 10px;
-    }
-    button {
-      margin-top: 15px;
-      padding: 12px 24px;
-      background-color: #0d47a1;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
+
+    .radio-group label {
+      margin-right: 20px;
       font-size: 16px;
-      cursor: pointer;
     }
-    button:hover {
-      background-color: #1565c0;
-    }
+
     #progressBar {
       width: 100%;
       background: #e0e0e0;
-      border-radius: 6px;
+      border-radius: 8px;
       overflow: hidden;
-      margin-top: 1rem;
+      margin-top: 20px;
       display: none;
     }
+
     #progressBarInner {
       height: 18px;
-      background: #4caf50;
+      background: var(--accent);
       width: 0%;
-      transition: width 0.4s ease;
     }
+
     #status, #downloadLink {
-      margin-top: 1rem;
-      font-weight: bold;
-      color: #333;
+      margin-top: 20px;
+      font-weight: 500;
+      color: var(--text);
     }
+
     footer {
       margin-top: 30px;
       font-size: 0.8rem;
       color: #777;
-    }
-    .radio-group {
-      margin-bottom: 15px;
-      font-size: 16px;
-    }
-    .radio-group label {
-      margin-right: 20px;
     }
   </style>
 </head>
@@ -94,22 +131,23 @@
     <h1>Ascentech Lightning Solutions</h1>
     <h3>GeM Invoice Extractor</h3>
 
-    <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+    <form id="uploadForm" enctype="multipart/form-data">
       <div class="radio-group">
-        <label><input type="radio" name="mode" value="files" checked> 📄 Select PDF files</label>
-        <label><input type="radio" name="mode" value="folder"> 🗂️ Select folder</label>
+        <label><input type="radio" name="mode" value="files" checked> 📄 PDF files</label>
+        <label><input type="radio" name="mode" value="folder"> 🗂️ Folder</label>
       </div>
 
       <input type="file" id="fileInput" name="pdfs" accept=".pdf" multiple>
       <input type="file" id="folderInput" name="pdfs" accept=".pdf" webkitdirectory directory style="display: none;">
 
-      <button type="submit">Extract to Excel</button>
+      <button type="submit">🚀 Extract to Excel</button>
     </form>
 
     <div id="progressBar"><div id="progressBarInner"></div></div>
     <div id="status"></div>
     <div id="downloadLink"></div>
-    <footer>Made by Arjun</footer>
+
+    <footer>Crafted with ❤️ by Arjun</footer>
   </div>
 
   <script>
@@ -119,16 +157,10 @@
     const progressBar = document.getElementById('progressBar');
     const progressInner = document.getElementById('progressBarInner');
 
-    // Toggle input fields based on radio selection
     document.querySelectorAll('input[name="mode"]').forEach(radio => {
       radio.addEventListener('change', function () {
-        if (this.value === 'files') {
-          fileInput.style.display = 'block';
-          folderInput.style.display = 'none';
-        } else {
-          fileInput.style.display = 'none';
-          folderInput.style.display = 'block';
-        }
+        fileInput.style.display = this.value === 'files' ? 'block' : 'none';
+        folderInput.style.display = this.value === 'folder' ? 'block' : 'none';
       });
     });
 
@@ -139,18 +171,18 @@
       const selectedFiles = selectedMode === 'files' ? fileInput.files : folderInput.files;
 
       if (!selectedFiles || selectedFiles.length === 0) {
-        alert('Please select at least one PDF file or folder.');
+        alert('Please select at least one PDF file.');
         return;
       }
 
       const formData = new FormData();
-      for (let i = 0; i < selectedFiles.length; i++) {
-        if (selectedFiles[i].name.endsWith('.pdf')) {
-          formData.append('pdfs', selectedFiles[i]);
+      Array.from(selectedFiles).forEach(file => {
+        if (file.name.endsWith('.pdf')) {
+          formData.append('pdfs', file);
         }
-      }
+      });
 
-      document.getElementById('status').textContent = 'Uploading and extracting...';
+      document.getElementById('status').textContent = '⏳ Uploading and extracting...';
       progressBar.style.display = 'block';
       progressInner.style.width = '10%';
 
@@ -158,11 +190,11 @@
         method: 'POST',
         body: formData,
       })
-        .then((res) => {
+        .then(res => {
           progressInner.style.width = '60%';
           return res.blob();
         })
-        .then((blob) => {
+        .then(blob => {
           progressInner.style.width = '100%';
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -171,7 +203,7 @@
           a.textContent = '📥 Download Excel File';
           document.getElementById('downloadLink').innerHTML = '';
           document.getElementById('downloadLink').appendChild(a);
-          document.getElementById('status').textContent = '✅ Extraction complete';
+          document.getElementById('status').textContent = '✅ Extraction complete!';
         })
         .catch(() => {
           document.getElementById('status').textContent = '❌ Extraction failed. Try again.';
